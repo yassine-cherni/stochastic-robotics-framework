@@ -1,0 +1,157 @@
+# Noise Injection Configuration
+# This file defines noise models for sensors and actuators
+
+noise_injection:
+  enabled: true
+  mode: "domain_randomization"  # Options: clean, fixed, domain_randomization
+  
+  sensors:
+    # Joint position sensors (encoders)
+    joint_position:
+      type: "gaussian"
+      mu: 0.0
+      sigma: 0.05  # radians (for fixed mode)
+      sigma_range: [0.0, 0.1]  # radians (for domain randomization)
+      clip_range: null  # Optional [min, max] to clip values
+      
+    # Joint velocity sensors
+    joint_velocity:
+      type: "gaussian"
+      mu: 0.0
+      sigma: 0.1  # rad/s
+      sigma_range: [0.0, 0.15]
+      
+    # IMU acceleration
+    imu_accel:
+      type: "gaussian"
+      mu: 0.0
+      sigma: 0.2  # m/s^2
+      sigma_range: [0.0, 0.3]
+      
+    # IMU gyroscope
+    imu_gyro:
+      type: "gaussian"
+      mu: 0.0
+      sigma: 0.1  # rad/s
+      sigma_range: [0.0, 0.15]
+      
+    # Camera/vision
+    camera:
+      gaussian:
+        type: "gaussian"
+        sigma: 0.02  # normalized [0, 1]
+        sigma_range: [0.0, 0.05]
+      salt_pepper:
+        type: "salt_pepper"
+        salt_prob: 0.01
+        pepper_prob: 0.01
+        prob_range: [0.0, 0.02]
+        
+    # LiDAR/depth sensor
+    lidar:
+      type: "gaussian"
+      mu: 0.0
+      sigma: 0.02  # meters
+      sigma_range: [0.0, 0.05]
+      
+    # Force/torque sensors
+    force_torque:
+      type: "gaussian"
+      mu: 0.0
+      sigma: 0.5  # Newtons/Newton-meters
+      sigma_range: [0.0, 1.0]
+  
+  actuators:
+    # Motor commands
+    motor_commands:
+      type: "ornstein_uhlenbeck"
+      theta: 0.15  # Mean reversion rate
+      mu: 0.0  # Long-term mean
+      sigma: 0.05  # Volatility
+      sigma_range: [0.0, 0.1]  # For domain randomization
+      dt: 0.01  # Time step (seconds)
+      clip_range: [-1.0, 1.0]  # Clip to action space
+      
+    # Action delay (latency)
+    action_delay:
+      type: "uniform"
+      delay_range: [0, 50]  # milliseconds
+      enabled: false  # Enable/disable delay simulation
+
+# Physics/Dynamics Randomization
+physics_randomization:
+  enabled: true
+  
+  dynamics:
+    # Mass randomization (multiplier)
+    mass_range: [0.8, 1.2]
+    
+    # Friction coefficients
+    friction_range: [0.5, 1.5]
+    
+    # Joint damping
+    damping_range: [0.8, 1.2]
+    
+    # Joint stiffness
+    stiffness_range: [0.9, 1.1]
+  
+  contact:
+    # Contact stiffness
+    contact_stiffness_range: [0.7, 1.3]
+    
+    # Coefficient of restitution (bounciness)
+    restitution_range: [0.0, 0.3]
+  
+  geometry:
+    # Link length variations
+    link_length_range: [0.98, 1.02]
+
+# Training Configuration
+training:
+  algorithm: "PPO"  # Options: PPO, SAC, TD3
+  total_timesteps: 10_000_000
+  n_parallel_envs: 64
+  
+  # Noise scheduling
+  noise_schedule:
+    enabled: false
+    initial_sigma: 0.0
+    final_sigma: 0.1
+    schedule_type: "linear"  # Options: linear, exponential, constant
+  
+  # Curriculum learning
+  curriculum:
+    enabled: false
+    stages:
+      - name: "easy"
+        timesteps: 2_000_000
+        noise_sigma: 0.02
+      - name: "medium"
+        timesteps: 4_000_000
+        noise_sigma: 0.05
+      - name: "hard"
+        timesteps: 4_000_000
+        noise_sigma: 0.1
+
+# Evaluation Configuration
+evaluation:
+  n_episodes: 100
+  noise_levels: [0.0, 0.02, 0.05, 0.1, 0.2]
+  confidence_level: 0.95
+  max_episode_steps: 1000
+  
+  # Metrics to track
+  metrics:
+    - "mean_return"
+    - "std_return"
+    - "success_rate"
+    - "episode_length"
+    - "percentiles"
+
+# Experiment Tracking
+experiment:
+  name: "stochastic_robotics_baseline"
+  save_dir: "./results"
+  log_tensorboard: true
+  save_frequency: 100_000  # Save model every N steps
+  eval_frequency: 50_000  # Evaluate every N steps
